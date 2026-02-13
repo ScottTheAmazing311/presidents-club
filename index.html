@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>President's Club — BDR Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet" />
+  <style>
+    /* ========================================
+       CONFIG — Change this to swap sheets
+       ======================================== */
+    :root {
+      /* COLORS */
+      --bg-primary: #07080e;
+      --bg-card: rgba(255,255,255,0.025);
+      --bg-card-hover: rgba(255,255,255,0.055);
+      --border: rgba(255,255,255,0.06);
+      --border-hover: rgba(255,255,255,0.14);
+      --text-primary: #f0f0f5;
+      --text-secondary: rgba(255,255,255,0.45);
+      --text-muted: rgba(255,255,255,0.25);
+      --accent-gold: #E2A93B;
+      --accent-gold-dim: rgba(226,169,59,0.15);
+      --accent-blue: #4A90D9;
+      --accent-green: #3EBD8C;
+      --accent-purple: #9775E4;
+      --accent-red: #E05C5C;
+
+      /* TYPOGRAPHY */
+      --font-display: 'Playfair Display', Georgia, serif;
+      --font-body: 'DM Sans', -apple-system, sans-serif;
+    }
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Ambient noise texture overlay */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 0;
+    }
+
+    /* Ambient glow */
+    .ambient-glow {
+      position: fixed; border-radius: 50%; pointer-events: none; z-index: 0;
+      filter: blur(100px);
+    }
+    .ambient-glow.gold { top: -15%; right: -5%; width: 500px; height: 500px; background: rgba(226,169,59,0.04); }
+    .ambient-glow.blue { bottom: -10%; left: -8%; width: 400px; height: 400px; background: rgba(74,144,217,0.03); }
+
+    .container {
+      position: relative; z-index: 1;
+      max-width: 1240px; margin: 0 auto;
+      padding: 48px 28px 60px;
+    }
+
+    /* ── Header ── */
+    .header { margin-bottom: 52px; }
+    .header-eyebrow {
+      font-size: 10.5px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 4px;
+      color: var(--accent-gold); opacity: 0.7;
+      margin-bottom: 14px;
+    }
+    .header-title {
+      font-family: var(--font-display);
+      font-size: clamp(36px, 5vw, 56px);
+      font-weight: 400; letter-spacing: -1px;
+      line-height: 1.08; margin-bottom: 10px;
+    }
+    .header-title em { font-style: italic; color: var(--accent-gold); }
+    .header-sub {
+      font-size: 14px; color: var(--text-secondary);
+      font-weight: 400;
+    }
+    .header-sub .live-dot {
+      display: inline-block; width: 7px; height: 7px;
+      background: var(--accent-green); border-radius: 50%;
+      margin-right: 6px; vertical-align: middle;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    /* ── Loading / Error ── */
+    .status-msg {
+      text-align: center; padding: 80px 20px;
+      font-size: 15px; color: var(--text-secondary);
+    }
+    .status-msg .spinner {
+      width: 32px; height: 32px; border: 3px solid var(--border);
+      border-top-color: var(--accent-gold);
+      border-radius: 50%; margin: 0 auto 20px;
+      animation: spin 0.8s linear infinite;
+    }
+
+    /* ── KPI Row ── */
+    .kpi-row {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+      margin-bottom: 40px;
+    }
+    .kpi-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 22px 18px;
+      position: relative; overflow: hidden;
+      opacity: 0; animation: slideUp 0.5s ease forwards;
+    }
+    .kpi-card::before {
+      content: ''; position: absolute;
+      top: 0; left: 0; width: 32px; height: 2.5px;
+      border-radius: 0 0 4px 0;
+    }
+    .kpi-card:nth-child(1)::before { background: var(--accent-gold); }
+    .kpi-card:nth-child(2)::before { background: var(--accent-blue); }
+    .kpi-card:nth-child(3)::before { background: var(--accent-green); }
+    .kpi-card:nth-child(4)::before { background: var(--accent-purple); }
+    .kpi-label {
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 1.8px;
+      color: var(--text-muted); margin-bottom: 12px;
+    }
+    .kpi-value {
+      font-family: var(--font-display); font-size: 30px;
+      font-weight: 400; letter-spacing: -0.5px; line-height: 1;
+    }
+    .kpi-sub {
+      font-size: 12px; color: var(--text-muted);
+      margin-top: 4px; font-weight: 500;
+    }
+
+    /* ── Main Grid ── */
+    .main-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+    }
+
+    /* ── Leaderboard ── */
+    .leaderboard-label {
+      font-size: 10.5px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 2.5px;
+      color: var(--text-muted); margin-bottom: 14px;
+    }
+    .rep-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 18px 18px;
+      margin-bottom: 8px; cursor: pointer;
+      transition: all 0.25s ease;
+      position: relative; overflow: hidden;
+      opacity: 0; animation: slideUp 0.45s ease forwards;
+    }
+    .rep-card:hover { background: var(--bg-card-hover); border-color: var(--border-hover); }
+    .rep-card.expanded { background: var(--bg-card-hover); border-color: var(--border-hover); }
+    .rep-card.leader::after {
+      content: ''; position: absolute; top: 0; left: 0; right: 0;
+      height: 2.5px;
+      background: linear-gradient(90deg, var(--accent-gold), transparent);
+    }
+    .rep-row {
+      display: flex; align-items: center; gap: 14px;
+    }
+    .rep-rank {
+      width: 14px; text-align: center;
+      font-family: var(--font-display); font-size: 13px;
+      color: var(--text-muted); font-style: italic;
+    }
+    .rep-avatar {
+      width: 42px; height: 42px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 12.5px;
+      letter-spacing: 0.5px; flex-shrink: 0;
+    }
+    .rep-info { flex: 1; min-width: 0; }
+    .rep-name {
+      font-weight: 600; font-size: 14.5px;
+      letter-spacing: -0.2px; margin-bottom: 4px;
+      color: var(--text-primary);
+    }
+    .rep-tier {
+      display: inline-block; padding: 2px 10px;
+      border-radius: 20px; font-size: 10.5px; font-weight: 600;
+    }
+    .rep-score-wrap { text-align: right; }
+    .rep-score {
+      font-family: var(--font-display); font-size: 26px;
+      font-weight: 400; line-height: 1; letter-spacing: -0.5px;
+    }
+    .rep-score-max {
+      font-size: 10px; font-weight: 500; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 1px;
+    }
+
+    /* ── Expanded Detail ── */
+    .rep-detail {
+      display: none; margin-top: 18px;
+      grid-template-columns: repeat(4, 1fr); gap: 10px;
+    }
+    .rep-card.expanded .rep-detail {
+      display: grid; animation: fadeIn 0.3s ease;
+    }
+    .detail-cell { text-align: center; }
+    .detail-ring {
+      width: 50px; height: 50px; margin: 0 auto 6px;
+      position: relative;
+    }
+    .detail-ring svg { transform: rotate(-90deg); }
+    .detail-ring-bg { fill: none; stroke: rgba(255,255,255,0.06); stroke-width: 4.5; }
+    .detail-ring-fg {
+      fill: none; stroke-width: 4.5; stroke-linecap: round;
+      transition: stroke-dashoffset 1s cubic-bezier(0.4,0,0.2,1);
+    }
+    .detail-val {
+      font-family: var(--font-display); font-size: 15px;
+      color: var(--text-primary);
+    }
+    .detail-label {
+      font-size: 9px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      color: var(--text-muted); margin-top: 2px;
+    }
+
+    /* Pipeline badge */
+    .pipeline-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 10px; border-radius: 20px;
+      font-size: 10.5px; font-weight: 600; margin-top: 12px;
+    }
+    .pipeline-badge.pass { background: rgba(62,189,140,0.1); color: var(--accent-green); }
+    .pipeline-badge.fail { background: rgba(224,92,92,0.1); color: var(--accent-red); }
+
+    /* ── Right Column Cards ── */
+    .panel {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 22px;
+      margin-bottom: 20px;
+      opacity: 0; animation: slideUp 0.5s ease forwards;
+    }
+    .panel-label {
+      font-size: 10.5px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 2.5px;
+      color: var(--text-muted); margin-bottom: 18px;
+    }
+
+    /* Chart */
+    .chart-container { position: relative; width: 100%; }
+    .chart-bar-group {
+      display: flex; align-items: flex-end; gap: 6px;
+      padding: 0 4px; justify-content: center;
+    }
+    .chart-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    .chart-stack {
+      width: 100%; max-width: 36px; border-radius: 4px 4px 0 0;
+      overflow: hidden; position: relative;
+      transition: opacity 0.2s;
+    }
+    .chart-stack:hover { opacity: 0.85; }
+    .chart-seg { width: 100%; transition: height 0.8s cubic-bezier(0.4,0,0.2,1); }
+    .chart-name {
+      font-size: 10.5px; color: var(--text-secondary);
+      font-weight: 500; white-space: nowrap;
+    }
+    .chart-legend {
+      display: flex; gap: 18px; justify-content: center;
+      margin-top: 16px; flex-wrap: wrap;
+    }
+    .chart-legend-item {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11px; color: var(--text-secondary); font-weight: 500;
+    }
+    .chart-legend-dot { width: 8px; height: 8px; border-radius: 3px; }
+
+    /* Tooltip */
+    .chart-tooltip {
+      display: none; position: absolute;
+      background: rgba(10,10,20,0.95); border: 1px solid var(--border-hover);
+      border-radius: 10px; padding: 12px 16px;
+      backdrop-filter: blur(20px); z-index: 10;
+      pointer-events: none; min-width: 160px;
+    }
+    .chart-tooltip.visible { display: block; }
+    .chart-tooltip-name { font-weight: 600; font-size: 13px; margin-bottom: 8px; }
+    .chart-tooltip-row {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 3px; font-size: 12px; color: var(--text-secondary);
+    }
+    .chart-tooltip-dot { width: 7px; height: 7px; border-radius: 3px; flex-shrink: 0; }
+    .chart-tooltip-val { color: var(--text-primary); font-weight: 600; }
+
+    /* Scoring & Eligibility */
+    .scoring-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .scoring-item {
+      padding: 14px; border-radius: 10px;
+      background: rgba(255,255,255,0.015);
+      border: 1px solid rgba(255,255,255,0.03);
+    }
+    .scoring-item-header { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; }
+    .scoring-dot { width: 5px; height: 5px; border-radius: 50%; }
+    .scoring-item-label { font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.6); }
+    .scoring-item-value {
+      font-family: var(--font-display); font-size: 20px; color: var(--text-primary);
+    }
+    .scoring-item-value span { font-size: 12px; color: var(--text-muted); }
+
+    .penalty-box {
+      margin-top: 14px; padding: 14px;
+      border-radius: 10px;
+      background: rgba(224,92,92,0.05);
+      border: 1px solid rgba(224,92,92,0.12);
+    }
+    .penalty-title { font-size: 12px; font-weight: 600; color: rgba(224,92,92,0.75); margin-bottom: 3px; }
+    .penalty-desc { font-size: 12px; color: var(--text-secondary); }
+
+    .elig-rule {
+      display: flex; align-items: center; gap: 10px;
+      padding: 11px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+    .elig-rule:last-of-type { border-bottom: none; }
+    .elig-check {
+      width: 20px; height: 20px; border-radius: 6px;
+      background: rgba(62,189,140,0.12); display: flex;
+      align-items: center; justify-content: center;
+      font-size: 10px; color: var(--accent-green); flex-shrink: 0;
+    }
+    .elig-text { font-size: 13px; color: rgba(255,255,255,0.55); font-weight: 500; }
+
+    .ramp-box {
+      margin-top: 16px; padding: 14px;
+      border-radius: 10px;
+      background: rgba(151,117,228,0.05);
+      border: 1px solid rgba(151,117,228,0.1);
+    }
+    .ramp-title { font-size: 11px; font-weight: 600; color: rgba(151,117,228,0.65); margin-bottom: 8px; }
+    .ramp-months { display: flex; gap: 20px; }
+    .ramp-month { text-align: center; }
+    .ramp-val { font-family: var(--font-display); font-size: 18px; color: var(--text-primary); }
+    .ramp-label { font-size: 10px; color: var(--text-muted); }
+
+    /* Footer */
+    .footer {
+      text-align: center; margin-top: 48px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255,255,255,0.03);
+      font-size: 11px; color: var(--text-muted);
+    }
+
+    /* Tier Colors */
+    .tier-elite { background: linear-gradient(135deg, #E2A93B, #c4872a); color: #3d2600; }
+    .tier-ontrack { background: linear-gradient(135deg, #3EBD8C, #2a9d6f); color: #063d2b; }
+    .tier-building { background: linear-gradient(135deg, #4A90D9, #3570b5); color: #0f2a4a; }
+    .tier-ramping { background: linear-gradient(135deg, #9775E4, #7a55d0); color: #1f0f40; }
+
+    /* Animations */
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 1; }
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Responsive */
+    @media (max-width: 860px) {
+      .main-grid { grid-template-columns: 1fr; }
+      .kpi-row { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 520px) {
+      .kpi-row { grid-template-columns: 1fr; }
+      .container { padding: 28px 16px 40px; }
+      .header-title { font-size: 32px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient-glow gold"></div>
+  <div class="ambient-glow blue"></div>
+
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-eyebrow">BDR Performance Tracker</div>
+      <h1 class="header-title">President's <em>Club</em></h1>
+      <div class="header-sub">
+        <span class="live-dot"></span>
+        <span id="headerSub">Loading sheet data…</span>
+      </div>
+    </div>
+
+    <!-- Content fills here via JS -->
+    <div id="app">
+      <div class="status-msg">
+        <div class="spinner"></div>
+        Fetching live data from Google Sheets…
+      </div>
+    </div>
+
+    <div class="footer">
+      Data pulled live from Google Sheets · Max 100 pts / month
+    </div>
+  </div>
+
+<script>
+// ============================================================
+//  CONFIG — To swap sheets, change this ID
+// ============================================================
+const SHEET_ID = '1iik6pqwS5s02ratye3O62VrY_P2lwsb1C-D7IxtuAP8';
+const GID = 0;
+const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
+
+// ============================================================
+//  SCORING CATEGORIES
+// ============================================================
+const CATS = [
+  { key: 'sets',     label: 'Meetings Set',  max: 30, color: '#E2A93B' },
+  { key: 'held',     label: 'Meetings Held', max: 35, color: '#4A90D9' },
+  { key: 'showRate', label: 'Show Rate',     max: 15, color: '#3EBD8C' },
+  { key: 'arr',      label: 'ARR Influence', max: 20, color: '#9775E4' },
+];
+
+// ============================================================
+//  PARSE CSV
+// ============================================================
+function parseCSV(text) {
+  const lines = text.split('\n').map(l => {
+    const row = [];
+    let inQuote = false, cell = '';
+    for (let i = 0; i < l.length; i++) {
+      const ch = l[i];
+      if (ch === '"') { inQuote = !inQuote; continue; }
+      if (ch === ',' && !inQuote) { row.push(cell.trim()); cell = ''; continue; }
+      cell += ch;
+    }
+    row.push(cell.trim());
+    return row;
+  });
+  return lines;
+}
+
+function extractReps(lines) {
+  // Find the FIRST header row with "Rep" in col A and "Totals" in col G area
+  // This corresponds to the current month's filled-in data (rows 25-33)
+  let headerIdx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i][0] && lines[i][0].toLowerCase().includes('rep') &&
+        lines[i].some(c => c.toLowerCase().includes('totals'))) {
+      headerIdx = i;
+      break;
+    }
+  }
+  if (headerIdx === -1) return [];
+
+  const reps = [];
+  for (let i = headerIdx + 1; i < lines.length; i++) {
+    const row = lines[i];
+    const name = (row[0] || '').trim();
+    if (!name) break; // empty row = end of block
+    const sets = parseFloat(row[1]) || 0;
+    const held = parseFloat(row[2]) || 0;
+    const showRate = parseFloat(row[3]) || 0;
+    const arr = parseFloat(row[4]) || 0;
+    const supered = (row[5] || '').trim();
+    const total = parseFloat(row[6]) || 0;
+    const initials = name.split(' ').map(w => w[0]).join('').toUpperCase();
+    reps.push({ name, sets, held, showRate, arr, supered, total, avatar: initials });
+  }
+  // Sort by total descending
+  reps.sort((a, b) => b.total - a.total);
+  return reps;
+}
+
+// ============================================================
+//  TIER LOGIC
+// ============================================================
+function getTier(total) {
+  if (total >= 75) return { cls: 'tier-elite',    label: '🏆 Elite' };
+  if (total >= 60) return { cls: 'tier-ontrack',  label: '🔥 On Track' };
+  if (total >= 40) return { cls: 'tier-building', label: '⚡ Building' };
+  return                   { cls: 'tier-ramping',  label: '🚀 Ramping' };
+}
+
+// ============================================================
+//  RENDER
+// ============================================================
+function render(reps) {
+  if (!reps.length) {
+    document.getElementById('app').innerHTML = `<div class="status-msg">No rep data found in the sheet. Make sure the first table has a "Rep" header row.</div>`;
+    return;
+  }
+
+  const leader = reps[0];
+  const avg = (reps.reduce((s, r) => s + r.total, 0) / reps.length).toFixed(1);
+  const qualified = reps.filter(r => r.total >= 60).length;
+
+  document.getElementById('headerSub').textContent = `Live from Google Sheets · ${reps.length} reps tracked`;
+
+  let html = '';
+
+  // KPI Row
+  const kpis = [
+    { label: 'Current Leader', value: leader.name.split(' ')[0], sub: leader.total.toFixed(1) + ' pts' },
+    { label: 'Team Average', value: avg, sub: 'points' },
+    { label: 'On Track (60+)', value: qualified, sub: `of ${reps.length} reps` },
+    { label: 'Month', value: '1', sub: 'of 7' },
+  ];
+  html += `<div class="kpi-row">`;
+  kpis.forEach((k, i) => {
+    html += `<div class="kpi-card" style="animation-delay:${i * 0.08}s">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value">${k.value}</div>
+      <div class="kpi-sub">${k.sub}</div>
+    </div>`;
+  });
+  html += `</div>`;
+
+  // Main grid
+  html += `<div class="main-grid">`;
+
+  // Left — Leaderboard
+  html += `<div><div class="leaderboard-label">Leaderboard</div>`;
+  reps.forEach((rep, i) => {
+    const tier = getTier(rep.total);
+    const isLeader = i === 0;
+    html += `<div class="rep-card ${isLeader ? 'leader' : ''}" data-idx="${i}" style="animation-delay:${i * 0.06}s" onclick="toggleRep(${i})">
+      <div class="rep-row">
+        <div class="rep-rank">${i + 1}</div>
+        <div class="rep-avatar ${tier.cls}">${rep.avatar}</div>
+        <div class="rep-info">
+          <div class="rep-name">${rep.name}</div>
+          <span class="rep-tier ${tier.cls}">${tier.label}</span>
+        </div>
+        <div class="rep-score-wrap">
+          <div class="rep-score">${rep.total.toFixed(1)}</div>
+          <div class="rep-score-max">/ 100 pts</div>
+        </div>
+      </div>
+      <div class="rep-detail">
+        ${CATS.map(c => {
+          const pct = Math.min((rep[c.key] / c.max) * 100, 100);
+          const r = 21, circ = 2 * Math.PI * r;
+          const offset = circ - (pct / 100) * circ;
+          return `<div class="detail-cell">
+            <div class="detail-ring">
+              <svg width="50" height="50" viewBox="0 0 50 50">
+                <circle class="detail-ring-bg" cx="25" cy="25" r="${r}" />
+                <circle class="detail-ring-fg" cx="25" cy="25" r="${r}"
+                  stroke="${c.color}"
+                  stroke-dasharray="${circ}"
+                  stroke-dashoffset="${offset}" />
+              </svg>
+            </div>
+            <div class="detail-val">${rep[c.key].toFixed(1)}</div>
+            <div class="detail-label">${c.label}</div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div style="text-align:center">
+        <span class="pipeline-badge ${rep.supered.toLowerCase() === 'pass' ? 'pass' : 'fail'}">
+          ${rep.supered.toLowerCase() === 'pass' ? '✓ Pipeline Clean' : '⚠ ' + rep.supered}
+        </span>
+      </div>
+    </div>`;
+  });
+  html += `</div>`;
+
+  // Right column
+  html += `<div>`;
+
+  // Chart
+  const maxTotal = Math.max(...reps.map(r => r.total), 1);
+  const chartMax = 100;
+  const barH = 260;
+  html += `<div class="panel" style="animation-delay:0.15s">
+    <div class="panel-label">Point Breakdown</div>
+    <div class="chart-container">
+      <div class="chart-bar-group" style="height:${barH}px; align-items: flex-end;">
+        ${reps.map((rep, i) => {
+          const segments = CATS.map(c => ({ h: (rep[c.key] / chartMax) * barH, color: c.color, label: c.label, val: rep[c.key] }));
+          const totalH = segments.reduce((s, seg) => s + seg.h, 0);
+          return `<div class="chart-col" data-rep="${i}"
+              onmouseenter="showTooltip(event, ${i})" onmouseleave="hideTooltip()">
+            <div class="chart-stack" style="height:${totalH}px">
+              ${segments.reverse().map(seg => `<div class="chart-seg" style="height:${seg.h}px;background:${seg.color}"></div>`).join('')}
+            </div>
+            <div class="chart-name">${rep.name.split(' ')[0]}</div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="chart-tooltip" id="chartTooltip"></div>
+    </div>
+    <div class="chart-legend">
+      ${CATS.map(c => `<div class="chart-legend-item"><div class="chart-legend-dot" style="background:${c.color}"></div>${c.label}</div>`).join('')}
+    </div>
+  </div>`;
+
+  // Scoring system
+  html += `<div class="panel" style="animation-delay:0.25s">
+    <div class="panel-label">Scoring System</div>
+    <div class="scoring-grid">
+      ${CATS.map(c => `<div class="scoring-item">
+        <div class="scoring-item-header">
+          <div class="scoring-dot" style="background:${c.color}"></div>
+          <div class="scoring-item-label">${c.label}</div>
+        </div>
+        <div class="scoring-item-value">${c.max} <span>pts max</span></div>
+      </div>`).join('')}
+    </div>
+    <div class="penalty-box">
+      <div class="penalty-title">⚠ Pipeline Hygiene Penalty</div>
+      <div class="penalty-desc">10+ violations at EOM = −10 points</div>
+    </div>
+  </div>`;
+
+  // Eligibility
+  html += `<div class="panel" style="animation-delay:0.32s">
+    <div class="panel-label">✅ Eligibility Requirements</div>
+    ${['Avg 12+ meeting sets / month (Jan–July)', 'Avg 10+ meeting holds / month (Jan–July)', 'Show rate must average ≥ 80%'].map(r =>
+      `<div class="elig-rule"><div class="elig-check">✓</div><div class="elig-text">${r}</div></div>`
+    ).join('')}
+    <div class="ramp-box">
+      <div class="ramp-title">New Hire Ramp Points</div>
+      <div class="ramp-months">
+        <div class="ramp-month"><div class="ramp-val">+20</div><div class="ramp-label">Month 1</div></div>
+        <div class="ramp-month"><div class="ramp-val">+10</div><div class="ramp-label">Month 2</div></div>
+        <div class="ramp-month"><div class="ramp-val">+5</div><div class="ramp-label">Month 3</div></div>
+      </div>
+    </div>
+  </div>`;
+
+  html += `</div></div>`; // close right col + main grid
+
+  document.getElementById('app').innerHTML = html;
+
+  // Store reps globally for tooltip
+  window._reps = reps;
+}
+
+// ============================================================
+//  INTERACTIONS
+// ============================================================
+function toggleRep(idx) {
+  const cards = document.querySelectorAll('.rep-card');
+  cards.forEach((c, i) => {
+    if (i === idx) c.classList.toggle('expanded');
+    else c.classList.remove('expanded');
+  });
+}
+
+function showTooltip(e, idx) {
+  const rep = window._reps[idx];
+  if (!rep) return;
+  const tt = document.getElementById('chartTooltip');
+  tt.innerHTML = `<div class="chart-tooltip-name">${rep.name}</div>
+    ${CATS.map(c => `<div class="chart-tooltip-row">
+      <div class="chart-tooltip-dot" style="background:${c.color}"></div>
+      ${c.label}: <span class="chart-tooltip-val">${rep[c.key].toFixed(1)}</span>
+    </div>`).join('')}
+    <div class="chart-tooltip-row" style="margin-top:6px;font-weight:600;color:var(--text-primary)">
+      Total: ${rep.total.toFixed(1)}
+    </div>`;
+  tt.classList.add('visible');
+
+  const rect = e.currentTarget.getBoundingClientRect();
+  const container = e.currentTarget.closest('.chart-container').getBoundingClientRect();
+  tt.style.left = (rect.left - container.left - 40) + 'px';
+  tt.style.top = '-10px';
+}
+
+function hideTooltip() {
+  document.getElementById('chartTooltip').classList.remove('visible');
+}
+
+// ============================================================
+//  FETCH & BOOT
+// ============================================================
+async function loadData() {
+  try {
+    const resp = await fetch(CSV_URL);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const text = await resp.text();
+    const lines = parseCSV(text);
+    const reps = extractReps(lines);
+    render(reps);
+  } catch (err) {
+    document.getElementById('app').innerHTML = `
+      <div class="status-msg">
+        <p style="margin-bottom:12px">⚠ Could not fetch sheet data.</p>
+        <p style="font-size:13px;color:var(--text-muted)">
+          Make sure the sheet is shared as "Anyone with the link" → Viewer.<br>
+          Sheet ID: <code style="background:rgba(255,255,255,0.05);padding:2px 8px;border-radius:4px">${SHEET_ID}</code>
+        </p>
+        <p style="font-size:12px;color:var(--text-muted);margin-top:8px">${err.message}</p>
+      </div>`;
+  }
+}
+
+loadData();
+
+// Auto-refresh every 5 minutes
+setInterval(loadData, 5 * 60 * 1000);
+</script>
+</body>
+</html>
