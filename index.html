@@ -956,17 +956,41 @@ function parseCSV(text) {
 }
 
 function extractReps(lines) {
-  // Find the FIRST header row with "Rep" in col A and "Totals" in col G area
-  // This corresponds to the current month's filled-in data (rows 25-33)
-  let headerIdx = -1;
+  // Find all header rows with "Rep" in col A and any "Totals" column.
+  // Prefer the table with an "Overall Totals" column (cumulative championship).
+  // If none, use the last table that has actual rep data.
+
+  const candidates = [];
   for (let i = 0; i < lines.length; i++) {
     if (lines[i][0] && lines[i][0].toLowerCase().includes('rep') &&
         lines[i].some(c => c.toLowerCase().includes('totals'))) {
-      headerIdx = i;
+      candidates.push(i);
+    }
+  }
+  if (candidates.length === 0) return [];
+
+  // Pick the table with "overall totals" header; fall back to last candidate
+  let headerIdx = candidates[candidates.length - 1];
+  for (const idx of candidates) {
+    if (lines[idx].some(c => c.toLowerCase().includes('overall'))) {
+      headerIdx = idx;
       break;
     }
   }
-  if (headerIdx === -1) return [];
+
+  const headerRow = lines[headerIdx];
+  // Determine which column holds the championship total:
+  // prefer "overall totals", else last column containing "totals"
+  let totalCol = 6; // default
+  let lastTotalsCol = -1;
+  let overallCol = -1;
+  for (let c = 0; c < headerRow.length; c++) {
+    const h = (headerRow[c] || '').toLowerCase();
+    if (h.includes('totals') || h.includes('total')) lastTotalsCol = c;
+    if (h.includes('overall')) overallCol = c;
+  }
+  if (overallCol !== -1) totalCol = overallCol;
+  else if (lastTotalsCol !== -1) totalCol = lastTotalsCol;
 
   const reps = [];
   for (let i = headerIdx + 1; i < lines.length; i++) {
@@ -978,13 +1002,18 @@ function extractReps(lines) {
     const showRate = parseFloat(row[3]) || 0;
     const arr = parseFloat(row[4]) || 0;
     const supered = (row[5] || '').trim();
-    const total = parseFloat(row[6]) || 0;
+    const total = parseFloat(row[totalCol]) || 0;
     const initials = name.split(' ').map(w => w[0]).join('').toUpperCase();
     reps.push({ name, sets, held, showRate, arr, supered, total, avatar: initials });
   }
+
+  // Only keep rows that actually have data
+  const filled = reps.filter(r => r.total > 0);
+  const result = filled.length > 0 ? filled : reps;
+
   // Sort by total descending
-  reps.sort((a, b) => b.total - a.total);
-  return reps;
+  result.sort((a, b) => b.total - a.total);
+  return result;
 }
 
 // ============================================================
