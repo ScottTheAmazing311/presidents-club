@@ -1054,8 +1054,8 @@ function render(reps) {
     <div class="race-track">
       <div class="finish-line"></div>
       ${reps.map((rep, i) => {
-        const maxScore = 100;
-        const position = ((rep.total / maxScore) * 85) + 5; // 5-90% of track width
+        const maxScore = Math.ceil(Math.max(...reps.map(r => r.total), 100) / 50) * 50;
+        const position = Math.min(((rep.total / maxScore) * 85) + 5, 90); // 5-90% of track width
         const positionClass = i === 0 ? 'position-1' : i === 1 ? 'position-2' : i === 2 ? 'position-3' : 'position-other';
         const carColors = ['#E10600', '#00D2BE', '#FF8700', '#006F62', '#1E41FF', '#C92D4B', '#37BEDD', '#B6BABD'];
         const carColor = carColors[i % carColors.length];
@@ -1078,7 +1078,7 @@ function render(reps) {
     { label: '🏆 POLE POSITION', value: leader.name.split(' ')[0], sub: leader.total.toFixed(1) + ' PTS' },
     { label: '📊 TEAM AVG', value: avg, sub: 'POINTS' },
     { label: '🎯 PODIUM PACE', value: qualified, sub: `OF ${reps.length} DRIVERS` },
-    { label: '📅 RACE', value: '1', sub: 'OF 7 ROUNDS' },
+    { label: '📅 RACE', value: '2', sub: 'OF 7 ROUNDS' },
   ];
   html += `<div class="kpi-row">`;
   kpis.forEach((k, i) => {
@@ -1111,7 +1111,7 @@ function render(reps) {
         </div>
         <div class="rep-score-wrap">
           <div class="rep-score">${rep.total.toFixed(1)}</div>
-          <div class="rep-score-max">/ 100 pts</div>
+          <div class="rep-score-max">/ ${Math.ceil(Math.max(...reps.map(r => r.total), 100) / 50) * 50} pts</div>
         </div>
       </div>
       <div class="rep-detail">
@@ -1148,7 +1148,7 @@ function render(reps) {
 
   // Chart
   const maxTotal = Math.max(...reps.map(r => r.total), 1);
-  const chartMax = 100;
+  const chartMax = Math.ceil(Math.max(...reps.map(r => r.total), 100) / 50) * 50;
   const barH = 320;
   html += `<div class="panel" style="animation-delay:0.15s">
     <div class="panel-label">📊 CHAMPIONSHIP POINTS</div>
